@@ -142,6 +142,69 @@ class Settings(BaseSettings):
     )
 
     # ====================
+    # Oracle Database Settings (Legacy TMS)
+    # ====================
+    ORACLE_USER: str = Field(
+        default="oracle",
+        description="Oracle 사용자명"
+    )
+    ORACLE_PASSWORD: str = Field(
+        default="oracle",
+        description="Oracle 비밀번호"
+    )
+    ORACLE_HOST: str = Field(
+        default="localhost",
+        description="Oracle 호스트"
+    )
+    ORACLE_PORT: int = Field(
+        default=1521,
+        description="Oracle 포트"
+    )
+    ORACLE_SERVICE_NAME: str = Field(
+        default="ORCL",
+        description="Oracle 서비스명"
+    )
+
+    ORACLE_DATABASE_URL: Optional[str] = Field(
+        default=None,
+        description="Oracle 데이터베이스 URL (직접 제공 시)"
+    )
+
+    ORACLE_DB_ECHO: bool = Field(
+        default=False,
+        description="Oracle SQLAlchemy SQL 로깅 활성화"
+    )
+    ORACLE_DB_POOL_SIZE: int = Field(
+        default=5,
+        description="Oracle 커넥션 풀 크기"
+    )
+    ORACLE_DB_MAX_OVERFLOW: int = Field(
+        default=10,
+        description="Oracle 커넥션 풀 최대 오버플로우"
+    )
+
+    @field_validator("ORACLE_DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_oracle_db_connection(cls, v: Optional[str], info) -> str:
+        """
+        개별 Oracle DB 설정으로부터 ORACLE_DATABASE_URL을 자동 생성합니다.
+
+        ORACLE_DATABASE_URL이 직접 제공되면 그것을 사용하고,
+        그렇지 않으면 개별 설정값으로 URL을 구성합니다.
+        """
+        if v:
+            return v
+
+        values = info.data
+        user = values.get("ORACLE_USER")
+        password = values.get("ORACLE_PASSWORD")
+        host = values.get("ORACLE_HOST")
+        port = values.get("ORACLE_PORT")
+        service_name = values.get("ORACLE_SERVICE_NAME")
+
+        return f"oracle+oracledb://{user}:{password}@{host}:{port}/?service_name={service_name}"
+
+    # ====================
     # Domain Plugin Settings
     # ====================
     # 여기에 도메인별 설정을 추가할 수 있습니다
