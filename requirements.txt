@@ -5,6 +5,9 @@ uvicorn[standard]==0.27.0
 # 비동기 PostgreSQL 드라이버
 asyncpg==0.29.0
 
+# 비동기 Oracle 드라이버 (레거시 TMS 연동용)
+oracledb==2.0.0
+
 # SQLAlchemy 2.0 (ORM)
 sqlalchemy[asyncio]==2.0.25
 

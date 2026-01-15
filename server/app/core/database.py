@@ -16,7 +16,7 @@ from sqlalchemy.orm import DeclarativeBase
 from server.app.core.config import settings
 
 # ====================
-# Database Engine
+# Database Engine (PostgreSQL)
 # ====================
 
 engine = create_async_engine(
@@ -28,11 +28,35 @@ engine = create_async_engine(
 )
 
 # ====================
-# Session Factory
+# Oracle Database Engine (Legacy TMS)
+# ====================
+
+oracle_engine = create_async_engine(
+    settings.ORACLE_DATABASE_URL,
+    echo=settings.ORACLE_DB_ECHO,
+    pool_size=settings.ORACLE_DB_POOL_SIZE,
+    max_overflow=settings.ORACLE_DB_MAX_OVERFLOW,
+    pool_pre_ping=True,  # 연결 유효성 자동 검사
+)
+
+# ====================
+# Session Factory (PostgreSQL)
 # ====================
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
+    class_=AsyncSession,
+    expire_on_commit=False,  # 커밋 후에도 객체 접근 가능
+    autoflush=False,
+    autocommit=False,
+)
+
+# ====================
+# Oracle Session Factory (Legacy TMS)
+# ====================
+
+OracleAsyncSessionLocal = async_sessionmaker(
+    oracle_engine,
     class_=AsyncSession,
     expire_on_commit=False,  # 커밋 후에도 객체 접근 가능
     autoflush=False,
@@ -77,7 +101,7 @@ class Base(DeclarativeBase):
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    FastAPI dependency: 데이터베이스 세션 제공
+    FastAPI dependency: PostgreSQL 데이터베이스 세션 제공
 
     비동기 컨텍스트 매니저를 통해 세션을 생성하고
     요청이 끝나면 자동으로 세션을 닫습니다.
@@ -91,6 +115,29 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         AsyncSession: 데이터베이스 세션
     """
     async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+async def get_oracle_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI dependency: Oracle 데이터베이스 세션 제공 (Legacy TMS)
+
+    레거시 TMS 시스템의 Oracle DB에 접속하기 위한 세션을 제공합니다.
+    비동기 컨텍스트 매니저를 통해 세션을 생성하고
+    요청이 끝나면 자동으로 세션을 닫습니다.
+
+    사용법:
+        @router.post("/auth/login")
+        async def login(oracle_db: AsyncSession = Depends(get_oracle_db)):
+            ...
+
+    Yields:
+        AsyncSession: Oracle 데이터베이스 세션
+    """
+    async with OracleAsyncSessionLocal() as session:
         try:
             yield session
         finally:
@@ -149,3 +196,4 @@ class DatabaseManager:
         애플리케이션 종료 시 호출되어야 합니다.
         """
         await engine.dispose()
+        await oracle_engine.dispose()
